@@ -5,7 +5,7 @@ import depthLimit from 'graphql-depth-limit';
 import schema from './schema.js';
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
-  const { prisma } = fastify;
+  const {prisma} = fastify;
 
   fastify.route({
     url: '/',
@@ -18,7 +18,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
     },
     async handler(req) {
       const source: string = req.body.query;
-      const variableValues: Record<string, undefined> | undefined= req.body.variables;
+      const variableValues = req.body.variables;
 
       try {
         const errs = validate(
@@ -28,21 +28,17 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
         );
 
         if (errs.length > 0) {
-          return { errors: errs, prisma };
+          return {errors: errs, prisma};
         }
 
-        const result = await graphql({
+        return await graphql({
           schema,
           source,
           variableValues,
-          contextValue: { prisma },
+          contextValue: {prisma},
         });
-
-        return result.errors
-          ? { errors: result.errors, prisma }
-          : result;
       } catch (error) {
-        return { errors: [{ message: (error as Error).message }], prisma };
+        return {errors: [{message: (error as Error).message}], prisma};
       }
     },
   });
