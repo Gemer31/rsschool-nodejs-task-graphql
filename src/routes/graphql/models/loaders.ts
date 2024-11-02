@@ -3,7 +3,6 @@ import { IUser } from './user.js';
 import { IMemberType } from './memberType.js';
 import { IProfile } from './profile.js';
 import { IPost } from './post.js';
-import { SubscribersOnAuthorsExtended } from './subscribeOnAuthors.js';
 
 export interface IDataLoaders {
   userLoader: IUserDataLoader;
@@ -18,5 +17,5 @@ export type IUserDataLoader = DataLoader<string, IUser | null>;
 export type IMemberTypeDataLoader = DataLoader<string, IMemberType | null>;
 export type IProfileDataLoader = DataLoader<string, IProfile | null>;
 export type IUserPostsDataLoader = DataLoader<string, IPost[]>;
-export type IUserSubscribedToLoader = DataLoader<string, SubscribersOnAuthorsExtended[], string>;
-export type ISubscribedToUserLoader = DataLoader<string, SubscribersOnAuthorsExtended[], string>;
+export type IUserSubscribedToLoader = DataLoader<string, IUser[], string>;
+export type ISubscribedToUserLoader = IUserSubscribedToLoader;

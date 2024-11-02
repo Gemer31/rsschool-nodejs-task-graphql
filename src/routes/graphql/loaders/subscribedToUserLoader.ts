@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import DataLoader from 'dataloader';
-import { SubscribersOnAuthorsExtended } from '../models/subscribeOnAuthors.js';
+import { IUser } from '../models/user.js';
 
 export function subscribedToUserLoader(prisma: PrismaClient) {
   return new DataLoader(async (userIds: ReadonlyArray<string>) => {
@@ -8,12 +8,12 @@ export function subscribedToUserLoader(prisma: PrismaClient) {
       where: { authorId: { in: userIds as string[] } },
       include: { subscriber: true },
     });
-    const subscribers: Record<string, SubscribersOnAuthorsExtended[]> = {};
+    const subscribers: Record<string, IUser[]> = {};
     subscribersOnAuthors.forEach((sub) => {
       if (subscribers[sub.authorId]) {
-        subscribers[sub.authorId].push(sub);
+        subscribers[sub.authorId].push(sub.subscriber);
       } else {
-        subscribers[sub.authorId] = [sub];
+        subscribers[sub.authorId] = [sub.subscriber];
       }
     });
     return userIds.map((userId) => subscribers[userId] || []);
