@@ -11,7 +11,6 @@ import {
   GraphQLString,
 } from 'graphql/type/index.js';
 import { UUIDType } from './types/uuid.js';
-import { PrismaClient } from '@prisma/client';
 import {
   IGqlArgs,
   IGqlContext,
@@ -25,6 +24,7 @@ import {
   IUserInput,
   Messages,
 } from './models.js';
+import { parseResolveInfo, ResolveTree, simplifyParsedResolveInfoFragmentWithType } from 'graphql-parse-resolve-info';
 
 const MemberTypeId = new GraphQLEnumType({
   name: 'MemberTypeId',
@@ -38,76 +38,89 @@ const MemberType = new GraphQLObjectType<IMemberType>({
   name: 'MemberType',
   fields: () => ({
     id: {type: MemberTypeId},
-    discount: {
-      type: new GraphQLNonNull(GraphQLFloat),
-    },
-    postsLimitPerMonth: {
-      type: new GraphQLNonNull(GraphQLInt),
-    },
+    discount: {type: new GraphQLNonNull(GraphQLFloat)},
+    postsLimitPerMonth: {type: new GraphQLNonNull(GraphQLInt)},
   }),
 });
 
 const User: GraphQLObjectType = new GraphQLObjectType<IUser>({
   name: 'User',
   fields: () => ({
-    id: {
-      type: new GraphQLNonNull(UUIDType),
-    },
-    name: {
-      type: new GraphQLNonNull(GraphQLString),
-    },
-    balance: {
-      type: new GraphQLNonNull(GraphQLFloat),
-    },
+    id: {type: new GraphQLNonNull(UUIDType)},
+    name: {type: new GraphQLNonNull(GraphQLString)},
+    balance: {type: new GraphQLNonNull(GraphQLFloat)},
     profile: {
       type: Profile,
-      resolve: ({id}, args, {prisma}: { prisma: PrismaClient }) => {
-        return prisma.profile.findUnique({
+      resolve: (parent, args, {prisma}: IGqlContext) => {
+        return parent.profile || prisma.profile.findUnique({
           where: {
-            userId: id,
+            userId: parent.id,
           },
         });
       },
     },
     posts: {
       type: new GraphQLList(Post),
-      resolve: ({id}, args, {prisma}: { prisma: PrismaClient }) => {
-        return prisma.post.findMany({
-          where: {
-            authorId: id,
-          },
-        });
+      resolve: ({id}, args, {prisma}: IGqlContext) => prisma.post.findMany({
+        where: {
+          authorId: id,
+        },
+      }),
+    },
+    subscribedToUser: {
+      type: new GraphQLList(User),
+      resolve: async (parent, args, {prisma, userLoader}: IGqlContext) => {
+        const res: IUser[] = [];
+
+        if (parent.subscribedToUser) {
+          for (const s of parent.subscribedToUser) {
+            let user: IUser = await userLoader.load(s.subscriberId);
+
+            if (!user) {
+              user = (await prisma.user.findUnique({
+                where: {id: s.subscriberId},
+                include: {
+                  subscribedToUser: true,
+                  userSubscribedTo: true,
+                },
+              })) as IUser;
+
+              userLoader.prime(user.id, user);
+            }
+
+            user && res.push(user);
+          }
+        }
+
+        return res;
       },
     },
     userSubscribedTo: {
       type: new GraphQLList(User),
-      resolve: ({id}, args, {prisma}: { prisma: PrismaClient }) => {
-        return prisma.user.findMany({
-          where: {
-            subscribedToUser: {
-              some: {
-                subscriberId: id,
-              },
-            },
-          },
-          include: {
-            subscribedToUser: true,
-          },
-        });
-      },
-    },
-    subscribedToUser: {
-      type: new GraphQLList(User),
-      resolve: async ({id}, args, {prisma}: { prisma: PrismaClient }) => {
-        return prisma.user.findMany({
-          where: {
-            userSubscribedTo: {
-              some: {
-                authorId: id,
-              },
-            },
-          },
-        });
+      resolve: async (parent, args, {prisma, userLoader}: IGqlContext) => {
+        const res: IUser[] = [];
+
+        if (parent.userSubscribedTo) {
+          for (const s of parent.userSubscribedTo) {
+            let user: IUser = await userLoader.load(s.authorId);
+
+            if (!user) {
+              user = (await prisma.user.findUnique({
+                where: {id: s.authorId},
+                include: {
+                  subscribedToUser: true,
+                  userSubscribedTo: true,
+                },
+              })) as IUser;
+
+              userLoader.prime(user.id, user);
+            }
+
+            user && res.push(user);
+          }
+        }
+
+        return res;
       },
     },
   }),
@@ -142,12 +155,17 @@ const Profile: GraphQLObjectType = new GraphQLObjectType<IProfile>({
     },
     memberType: {
       type: MemberType,
-      resolve: ({memberTypeId}: { memberTypeId: string }, args, {prisma}: { prisma: PrismaClient }) => {
-        return prisma.memberType.findUnique({
-          where: {
-            id: memberTypeId,
-          },
-        });
+      resolve: async ({memberTypeId}: { memberTypeId: string }, args, {prisma, memberTypeLoader}: IGqlContext) => {
+        let memberType: IMemberType | null = await memberTypeLoader.load(memberTypeId);
+
+        if (!memberType) {
+          memberType = await prisma.memberType.findUnique({
+            where: {id: memberTypeId},
+          });
+          memberTypeLoader.prime(memberTypeId, memberType as IMemberType);
+        }
+
+        return memberType;
       },
     },
   }),
@@ -226,16 +244,39 @@ const RootQueryType = new GraphQLObjectType({
 
     users: {
       type: new GraphQLList(User),
-      resolve: (src, args, {prisma}: IGqlContext) => prisma.user.findMany(),
+      resolve: async (parent, args, {prisma, userLoader}: IGqlContext, info) => {
+        const parsedInfo = parseResolveInfo(info) as ResolveTree;
+        const {fields} = simplifyParsedResolveInfoFragmentWithType(parsedInfo, User);
+
+        const users = await prisma.user.findMany({
+          include: {
+            userSubscribedTo: 'userSubscribedTo' in fields,
+            subscribedToUser: 'subscribedToUser' in fields,
+            // posts: 'posts' in fields,
+            profile: 'profile' in fields,
+          },
+        }) as IUser[];
+        users.forEach((user) => userLoader.prime(user.id, user));
+        return users;
+      },
     },
     user: {
       type: User,
       args: {id: {type: new GraphQLNonNull(UUIDType)}},
-      resolve: (src, {id}, {prisma}: IGqlContext) => prisma
-        .user
-        .findUnique({
-          where: {id: id as string},
-        }),
+      resolve: async (src, {id}: IId, {prisma, userLoader}: IGqlContext, info) => {
+        const parsedInfo = parseResolveInfo(info) as ResolveTree;
+        const {fields} = simplifyParsedResolveInfoFragmentWithType(parsedInfo, User);
+
+        const user = await prisma.user.findUnique({
+          where: {id},
+          include: {
+            userSubscribedTo: 'userSubscribedTo' in fields,
+            subscribedToUser: 'subscribedToUser' in fields,
+          },
+        }) as IUser;
+        user?.id && userLoader.prime(user.id, user);
+        return user;
+      },
     },
 
     posts: {

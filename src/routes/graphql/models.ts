@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import DataLoader from 'dataloader';
 
 export enum Messages {
   DELETED_SUCCESSFULLY = 'Deleted successfully'
@@ -12,6 +13,8 @@ export interface IGqlArgs<T = undefined> extends IId {
 
 export interface IGqlContext {
   prisma: PrismaClient;
+  userLoader: DataLoader<string, IUser>;
+  memberTypeLoader: DataLoader<string, IMemberType>;
 }
 
 export interface IId {
@@ -21,8 +24,13 @@ export interface IId {
 export interface IUser extends IUserInput, IId {
   profile: IProfile;
   posts: IPost[];
-  userSubscribedTo: IUser[];
-  subscribedToUser: IUser[];
+  userSubscribedTo: SubscribersOnAuthors[];
+  subscribedToUser: SubscribersOnAuthors[];
+}
+
+export interface SubscribersOnAuthors {
+  subscriberId: string;
+  authorId: string;
 }
 
 export interface IUserInput {
