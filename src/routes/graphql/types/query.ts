@@ -1,11 +1,14 @@
 import { GraphQLList, GraphQLNonNull, GraphQLObjectType } from 'graphql/type/index.js';
-import { IGqlContext, IId, IProfile, IUser } from '../models.js';
 import { parseResolveInfo, ResolveTree, simplifyParsedResolveInfoFragmentWithType } from 'graphql-parse-resolve-info';
 import { UUIDType } from './uuid.js';
 import { UserType } from './user.js';
 import { MemberType, MemberTypeId } from './memberType.js';
 import { PostType } from './postType.js';
 import { ProfileType } from './profileType.js';
+import { IGqlContext } from '../models/gql.js';
+import { IUserExtended } from '../models/user.js';
+import { IId } from '../models/common.js';
+import { IProfileExtended } from '../models/profile.js';
 
 export const RootQueryType = new GraphQLObjectType({
   name: 'RootQueryType',
@@ -36,10 +39,10 @@ export const RootQueryType = new GraphQLObjectType({
           include: {
             userSubscribedTo: 'userSubscribedTo' in fields,
             subscribedToUser: 'subscribedToUser' in fields,
-            posts: 'posts' in fields,
+            // posts: 'posts' in fields,
             profile: 'profile' in fields,
           },
-        }) as IUser[];
+        }) as IUserExtended[];
         users.forEach((user) => userLoader.prime(user.id, user));
         return users;
       },
@@ -59,7 +62,7 @@ export const RootQueryType = new GraphQLObjectType({
             posts: 'posts' in fields,
             profile: 'profile' in fields,
           },
-        }) as IUser;
+        }) as IUserExtended;
         user?.id && userLoader.prime(user.id, user);
         return user;
       },
@@ -84,7 +87,7 @@ export const RootQueryType = new GraphQLObjectType({
       resolve: async (src, args, {prisma, profileLoader}: IGqlContext) => {
         const profiles = await prisma.profile.findMany();
         profiles.forEach((profile) => {
-          profileLoader.prime(profile.id, profile as IProfile);
+          profileLoader.prime(profile.id, profile as IProfileExtended);
         });
         return profiles;
       },

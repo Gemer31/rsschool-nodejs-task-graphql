@@ -6,10 +6,11 @@ import {
   GraphQLObjectType,
   GraphQLString,
 } from 'graphql/type/index.js';
-import { IGqlContext, IUser } from '../models.js';
 import { UUIDType } from './uuid.js';
 import { ProfileType } from './profileType.js';
 import { PostType } from './postType.js';
+import { IUserExtended } from '../models/user.js';
+import { IGqlContext } from '../models/gql.js';
 
 export const CreateUserInputType = new GraphQLInputObjectType({
   name: 'CreateUserInput',
@@ -27,7 +28,7 @@ export const ChangeUserInputType = new GraphQLInputObjectType({
   },
 });
 
-export const UserType: GraphQLObjectType = new GraphQLObjectType<IUser>({
+export const UserType: GraphQLObjectType = new GraphQLObjectType<IUserExtended>({
   name: 'User',
   fields: () => ({
     id: {type: new GraphQLNonNull(UUIDType)},
@@ -35,11 +36,15 @@ export const UserType: GraphQLObjectType = new GraphQLObjectType<IUser>({
     balance: {type: new GraphQLNonNull(GraphQLFloat)},
     profile: {
       type: ProfileType,
-      resolve: ({id, profile}, args, {profileLoader}: IGqlContext) => (profile || profileLoader.load(id)),
+      resolve: ({id, profile}, args, {profileLoader}: IGqlContext) => (
+        profile || profileLoader.load(id)
+      ),
     },
     posts: {
       type: new GraphQLList(PostType),
-      resolve: ({id, posts}, args, {userPostsLoader}: IGqlContext) => (posts || userPostsLoader.load(id)),
+      resolve: ({id, posts}, args, {userPostsLoader}: IGqlContext) => (
+        posts || userPostsLoader.load(id)
+      ),
     },
     userSubscribedTo: {
       type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(UserType))),

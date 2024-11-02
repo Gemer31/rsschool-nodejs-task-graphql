@@ -5,9 +5,10 @@ import {
   GraphQLNonNull,
   GraphQLObjectType,
 } from 'graphql/type/index.js';
-import { IGqlContext, IMemberType, IProfile } from '../models.js';
 import { UUIDType } from './uuid.js';
 import { MemberType, MemberTypeId } from './memberType.js';
+import { IGqlContext } from '../models/gql.js';
+import { IMemberType } from '../models/memberType.js';
 
 export const CreateProfileInputType = new GraphQLInputObjectType({
   name: 'CreateProfileInput',
@@ -28,7 +29,7 @@ export const ChangeProfileInputType = new GraphQLInputObjectType({
   },
 });
 
-export const ProfileType: GraphQLObjectType = new GraphQLObjectType<IProfile>({
+export const ProfileType: GraphQLObjectType = new GraphQLObjectType({
   name: 'Profile',
   fields: () => ({
     id: {
@@ -48,7 +49,11 @@ export const ProfileType: GraphQLObjectType = new GraphQLObjectType<IProfile>({
     },
     memberType: {
       type: MemberType,
-      resolve: async ({memberTypeId}: { memberTypeId: string }, args, {prisma, memberTypeLoader}: IGqlContext) => {
+      resolve: async (
+        {memberTypeId}: { memberTypeId: string },
+        args,
+        {prisma, memberTypeLoader}: IGqlContext,
+      ) => {
         let memberType: IMemberType | null = await memberTypeLoader.load(memberTypeId);
 
         if (!memberType) {
