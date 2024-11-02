@@ -15,6 +15,11 @@ export interface IGqlContext {
   prisma: PrismaClient;
   userLoader: DataLoader<string, IUser>;
   memberTypeLoader: DataLoader<string, IMemberType>;
+  profileLoader: DataLoader<string, IProfile>;
+  userPostsLoader: DataLoader<string, IPost[]>;
+
+  userSubscribedToLoader: DataLoader<string, IUser[]>;
+  subscribedToUserLoader: DataLoader<string, IUser[]>;
 }
 
 export interface IId {

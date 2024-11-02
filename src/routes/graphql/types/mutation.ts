@@ -1,7 +1,7 @@
 import { GraphQLNonNull, GraphQLObjectType, GraphQLString } from 'graphql/type/index.js';
 import { IGqlArgs, IGqlContext, IId, IPostInput, IProfileInput, IUserInput, Messages } from '../models.js';
 import { UUIDType } from './uuid.js';
-import { ChangeUserInputType, CreateUserInputType, UserType } from './userType.js';
+import { ChangeUserInputType, CreateUserInputType, UserType } from './user.js';
 import { ChangePostInput, CreatePostInput, PostType } from './postType.js';
 import { ChangeProfileInputType, CreateProfileInputType, ProfileType } from './profileType.js';
 

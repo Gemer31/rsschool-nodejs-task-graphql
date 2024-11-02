@@ -1,8 +1,8 @@
 import { GraphQLList, GraphQLNonNull, GraphQLObjectType } from 'graphql/type/index.js';
-import { IGqlContext, IId, IUser } from '../models.js';
+import { IGqlContext, IId, IProfile, IUser } from '../models.js';
 import { parseResolveInfo, ResolveTree, simplifyParsedResolveInfoFragmentWithType } from 'graphql-parse-resolve-info';
 import { UUIDType } from './uuid.js';
-import { UserType } from './userType.js';
+import { UserType } from './user.js';
 import { MemberType, MemberTypeId } from './memberType.js';
 import { PostType } from './postType.js';
 import { ProfileType } from './profileType.js';
@@ -25,6 +25,7 @@ export const RootQueryType = new GraphQLObjectType({
           },
         }),
     },
+
     users: {
       type: new GraphQLList(UserType),
       resolve: async (parent, args, {prisma, userLoader}: IGqlContext, info) => {
@@ -35,7 +36,7 @@ export const RootQueryType = new GraphQLObjectType({
           include: {
             userSubscribedTo: 'userSubscribedTo' in fields,
             subscribedToUser: 'subscribedToUser' in fields,
-            // posts: 'posts' in fields,
+            posts: 'posts' in fields,
             profile: 'profile' in fields,
           },
         }) as IUser[];
@@ -55,6 +56,8 @@ export const RootQueryType = new GraphQLObjectType({
           include: {
             userSubscribedTo: 'userSubscribedTo' in fields,
             subscribedToUser: 'subscribedToUser' in fields,
+            posts: 'posts' in fields,
+            profile: 'profile' in fields,
           },
         }) as IUser;
         user?.id && userLoader.prime(user.id, user);
@@ -78,7 +81,13 @@ export const RootQueryType = new GraphQLObjectType({
 
     profiles: {
       type: new GraphQLList(ProfileType),
-      resolve: (src, args, {prisma}: IGqlContext) => prisma.profile.findMany(),
+      resolve: async (src, args, {prisma, profileLoader}: IGqlContext) => {
+        const profiles = await prisma.profile.findMany();
+        profiles.forEach((profile) => {
+          profileLoader.prime(profile.id, profile as IProfile);
+        });
+        return profiles;
+      },
     },
     profile: {
       type: ProfileType,
